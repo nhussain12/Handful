@@ -85,7 +85,6 @@
                 <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px;color:var(--fg);"><span>{{ ing.name }}</span><span style="opacity:.55;white-space:nowrap;">{{ ing.amt }}</span></div>
               </sc-for>
             </div>
-            <div style="font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.16em;color:var(--fg);margin-top:14px;">SAY 'START COOKING' TO BEGIN.</div>
           </div>
         </sc-if>
 
@@ -162,20 +161,17 @@
     </div>
   </sc-for>
 
-  <!-- ACTIVE TIMERS (backend-driven, styled as mini timer notecards) -->
-  <div style="position:absolute;top:66px;right:30px;z-index:550;display:flex;flex-direction:column;gap:14px;align-items:flex-end;">
+  <!-- ACTIVE TIMERS — minimalist ring, no card; sits in the active notecard's top-right corner -->
+  <div style="position:absolute;top:calc(50% - min(330px,36vh) + 38px);right:calc(50% - min(560px,44vw) + 44px);z-index:550;display:flex;flex-direction:column;gap:20px;align-items:center;">
     <sc-for list="{{ timers }}" as="t" hint-placeholder-count="0">
-      <div style="{{ t.cardStyle }}">
-        <div style="position:absolute;left:13px;top:13px;bottom:13px;width:1.5px;background:rgba(239,230,214,.4);"></div>
-        <div style="display:flex;flex-direction:column;align-items:center;gap:9px;">
-          <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.2em;color:#EFE6D6;white-space:nowrap;">⏱ {{ t.label }}</div>
-          <div style="position:relative;width:84px;height:84px;">
-            <svg width="84" height="84" style="transform:rotate(-90deg);transform-origin:center;">
-              <circle cx="42" cy="42" r="36" fill="none" stroke="rgba(239,230,214,.25)" stroke-width="5"></circle>
-              <circle cx="42" cy="42" r="36" fill="none" stroke="{{ t.ringColor }}" stroke-width="5" stroke-linecap="round" stroke-dasharray="{{ t.circ }}" stroke-dashoffset="{{ t.offset }}" style="transition:stroke-dashoffset 1s linear;"></circle>
-            </svg>
-            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-weight:700;font-size:19px;letter-spacing:.02em;color:#EFE6D6;font-variant-numeric:tabular-nums;">{{ t.time }}</div>
-          </div>
+      <div style="position:relative;width:104px;height:104px;">
+        <svg width="104" height="104" style="transform:rotate(-90deg);transform-origin:center;">
+          <circle cx="52" cy="52" r="46" fill="none" stroke="{{ t.trackColor }}" stroke-width="4"></circle>
+          <circle cx="52" cy="52" r="46" fill="none" stroke="{{ t.ringColor }}" stroke-width="4" stroke-linecap="round" stroke-dasharray="{{ t.circ }}" stroke-dashoffset="{{ t.offset }}" style="transition:stroke-dashoffset 1s linear;"></circle>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;">
+          <div style="{{ t.timeStyle }}">{{ t.time }}</div>
+          <div style="{{ t.labelStyle }}">{{ t.label }}</div>
         </div>
       </div>
     </sc-for>
@@ -349,7 +345,7 @@
       <sc-if value="{{ kDealt }}" hint-placeholder-val="{{ false }}">
         <div style="margin-top:clamp(34px,4vw,52px);">
           <div style="display:inline-flex;align-items:center;gap:8px;background:#E9A98C;color:#17120F;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.2em;padding:7px 13px;border-radius:5px;transform:rotate(-1.5deg);">HANDFUL SAYS</div>
-          <p style="margin:16px 0 0;font-family:'Playfair Display',serif;font-style:italic;font-size:clamp(20px,2.4vw,30px);color:#EFE6D6;max-width:26ch;line-height:1.3;">Got it — flour, eggs, butter. Three ways we could go:</p>
+          <p style="margin:16px 0 0;font-family:'Playfair Display',serif;font-style:italic;font-size:clamp(20px,2.4vw,30px);color:#EFE6D6;max-width:26ch;line-height:1.3;">Got it — Some ways we could go:</p>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(16px,2vw,24px);margin-top:clamp(26px,3vw,40px);">
             <sc-for list="{{ kOptions }}" as="opt" hint-placeholder-count="3">
               <div style="{{ opt.style }}">
@@ -423,11 +419,17 @@ class Component extends DCLogic {
     cream: { bg:'#EFE6D6', fg:'#17120F', accent:'#C8501E', muted:'rgba(23,18,15,.55)', line:'rgba(23,18,15,.2)', strong:'#17120F', hlBg:'#E9A98C', hlFg:'#17120F', ringTrack:'rgba(23,18,15,.14)', ringFg:'#C8501E', rule:'rgba(200,80,30,.45)' },
     rust:  { bg:'#C8501E', fg:'#EFE6D6', accent:'#17120F', muted:'rgba(239,230,214,.72)', line:'rgba(239,230,214,.34)', strong:'rgba(239,230,214,.5)', hlBg:'#17120F', hlFg:'#E9A98C', ringTrack:'rgba(239,230,214,.22)', ringFg:'#EFE6D6', rule:'rgba(239,230,214,.4)' },
     dark:  { bg:'#17120F', fg:'#EFE6D6', accent:'#E9A98C', muted:'rgba(239,230,214,.55)', line:'rgba(239,230,214,.18)', strong:'rgba(239,230,214,.4)', hlBg:'#E9A98C', hlFg:'#17120F', ringTrack:'rgba(239,230,214,.14)', ringFg:'#E9A98C', rule:'rgba(233,169,140,.5)' },
+    clay:  { bg:'#E9A98C', fg:'#17120F', accent:'#C8501E', muted:'rgba(23,18,15,.6)', line:'rgba(23,18,15,.22)', strong:'#17120F', hlBg:'#17120F', hlFg:'#E9A98C', ringTrack:'rgba(23,18,15,.16)', ringFg:'#C8501E', rule:'rgba(200,80,30,.5)' },
   };
+  // Step cards rotate through the palette so consecutive notecards differ in colour.
+  STEP_SKINS = ['cream', 'rust', 'clay'];
   skinName(card) {
     if (!card) return 'cream';
-    if (card.kind === 'timer') return 'rust';
     if (card.kind === 'overview') return 'dark';
+    if (card.kind === 'ingredient' || card.kind === 'timer') {
+      const n = card.n || 1;
+      return this.STEP_SKINS[(n - 1) % this.STEP_SKINS.length];
+    }
     return 'cream';
   }
 
@@ -632,6 +634,7 @@ class Component extends DCLogic {
     if (!w) return false;
     if (this.WAKE_STOP.has(w)) return false;
     if (this.WAKE_VARIANTS.has(w)) return true;
+    if (w.startsWith('chef') || w.startsWith('shef')) return true;  // chef., chefs, cheffy, …
     return w.length >= 3 && w.length <= 5 && this._lev1(w, 'chef');  // fuzzy fallback
   }
   // Find the wake word anywhere in the phrase; return what was said after it.
@@ -739,6 +742,10 @@ class Component extends DCLogic {
     else if (t === 'function_call') this.handleFunctionCall(msg);
   }
 
+  _inIngredientEdit() {
+    // true if an ingredient was just added/removed (the accompanying step edit is a side effect)
+    return (Date.now() - (this._ingredientEditAt || 0)) < 5000;
+  }
   handleFunctionCall(msg) {
     const name = msg.name, res = msg.result || {}, args = msg.args || {};
     if (name === 'set_available_ingredients') {
@@ -753,6 +760,29 @@ class Component extends DCLogic {
       const o = (res.original || args.original || '').toUpperCase();
       const r = (res.replacement || args.replacement || '').toUpperCase();
       if (o && r) this.flashChip('SWAPPED · ' + o + ' → ' + r);
+    } else if (name === 'add_step') {
+      // A step edit that's part of an ingredient change should NOT yank the user around;
+      // only jump for a directly-requested step change.
+      if (!this._inIngredientEdit()) {
+        this._focusStep = (typeof res.step_index === 'number') ? res.step_index : null;  // jump to the new card
+        this.flashChip('STEP ADDED');
+      }
+    } else if (name === 'update_step') {
+      if (!this._inIngredientEdit()) {
+        this._focusStep = (typeof res.step_index === 'number') ? res.step_index : null;  // show the edited card
+        this.flashChip('STEP UPDATED');
+      }
+    } else if (name === 'remove_step') {
+      if (!this._inIngredientEdit()) {
+        this._focusStep = (typeof res.removed_index === 'number') ? res.removed_index : null;
+        this.flashChip('STEP REMOVED');
+      }
+    } else if (name === 'add_ingredient') {
+      this._ingredientEditAt = Date.now();  // suppress step-jump for the step edit that follows
+      this.flashChip('ADDED · ' + (res.name || args.name || '').toUpperCase());
+    } else if (name === 'remove_ingredient') {
+      this._ingredientEditAt = Date.now();
+      this.flashChip('REMOVED · ' + (res.name || args.name || '').toUpperCase());
     }
   }
 
@@ -774,11 +804,14 @@ class Component extends DCLogic {
 
   applyRecipe(recipe) {
     if (!recipe || !recipe.steps) return;
+    // A different name means a freshly chosen recipe; same name means a live edit
+    // (add/update/remove step or ingredient) — in that case keep the user where they are.
+    const isNewRecipe = (recipe.name || '') !== (this._recipeName || '');
     const ings = (recipe.ingredients || []);
     const flow = [{
       kind: 'overview',
       title: recipe.name || 'Your Recipe',
-      meta: (recipe.total_steps ? (recipe.total_steps + ' STEPS') : ''),
+      meta: ((recipe.steps.length) ? (recipe.steps.length + ' STEPS') : ''),
       ingredients: ings.map((i) => ({ name: this.titleCase(i.name), amt: i.quantity || '' })),
     }];
     recipe.steps.forEach((text, idx) => {
@@ -786,7 +819,15 @@ class Component extends DCLogic {
     });
     this.flow = flow;
     this._recipeName = recipe.name || '';
-    this.setState((s) => ({ index: Math.max(0, Math.min(this.flow.length - 1, s.index)) }));
+    this.setState((s) => {
+      let idx;
+      if (this._focusStep != null) { idx = this._focusStep + 1; this._focusStep = null; }  // jump to the just-edited/added card
+      else if (isNewRecipe) idx = 0;            // show the overview for a new recipe
+      else if (s.index === 0) idx = 0;          // stay on the overview if they're on it
+      else if (typeof recipe.current_step_index === 'number') idx = recipe.current_step_index + 1;
+      else idx = s.index;                       // otherwise hold position
+      return { index: Math.max(0, Math.min(this.flow.length - 1, idx)) };
+    });
   }
   derivePanel(text, ingredients) {
     const low = (text || '').toLowerCase();
@@ -1059,21 +1100,27 @@ class Component extends DCLogic {
       kHeard: this.state.kChips.map((c) => c.name).join(' · '),
       kChips: this.state.kChips.map((c) => ({ name: c.name, style: { display: 'inline-block', '--tilt': c.tilt + 'deg', transform: 'rotate(' + c.tilt + 'deg)', animation: 'scPop .5s both' } })),
       kOptions: this.state.suggested.map((o) => ({ num: o.num, title: o.title, meta: o.meta, pick: (e) => { if (e) e.stopPropagation(); this.pick(o); }, style: { '--tilt': o.tilt + 'deg', transform: 'rotate(' + o.tilt + 'deg)', animation: 'scDeal .55s ' + o.delay + 's both cubic-bezier(.2,1,.36,1)' } })),
-      timers: (this.state.started ? (this.state.activeTimers || []) : []).map((t) => {
-        const R = 36, C = 2 * Math.PI * R;
-        const dur = t.duration_seconds || 0;
-        const rem = Math.max(0, t.remaining_seconds || 0);
-        const frac = dur > 0 ? Math.max(0, Math.min(1, rem / dur)) : 0;
-        const low = dur > 0 && rem <= 30;  // last 30s — warn
-        return {
-          label: (t.label || 'TIMER').toUpperCase(),
-          time: this.fmt(Math.round(rem)),
-          circ: C.toFixed(1),
-          offset: (C * (1 - frac)).toFixed(1),
-          ringColor: low ? '#E9A98C' : '#EFE6D6',
-          cardStyle: { position: 'relative', background: '#C8501E', color: '#EFE6D6', borderRadius: '16px', padding: '14px 18px 16px 26px', boxShadow: '0 18px 40px -18px rgba(0,0,0,.6)' },
-        };
-      }),
+      timers: (() => {
+        const active = this.flow[this.state.index] || this.flow[0];
+        const sk = this.skins[this.skinName(active)];  // colours adapt to the card behind it
+        const R = 46, C = 2 * Math.PI * R;
+        return (this.state.started ? (this.state.activeTimers || []) : []).map((t) => {
+          const dur = t.duration_seconds || 0;
+          const rem = Math.max(0, t.remaining_seconds || 0);
+          const frac = dur > 0 ? Math.max(0, Math.min(1, rem / dur)) : 0;
+          const low = dur > 0 && rem <= 30;  // last 30s — warn
+          return {
+            label: (t.label || 'TIMER').toUpperCase(),
+            time: this.fmt(Math.round(rem)),
+            circ: C.toFixed(1),
+            offset: (C * (1 - frac)).toFixed(1),
+            ringColor: low ? sk.accent : sk.ringFg,
+            trackColor: sk.ringTrack,
+            timeStyle: { fontFamily: "'Space Mono',monospace", fontWeight: '700', fontSize: '23px', letterSpacing: '.02em', fontVariantNumeric: 'tabular-nums', color: sk.fg },
+            labelStyle: { fontFamily: "'Space Mono',monospace", fontSize: '9px', letterSpacing: '.2em', color: sk.accent },
+          };
+        });
+      })(),
       kTyped: this.state.kTyped,
       kType: (e) => this.setState({ kTyped: e.target.value }),
       kKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); this.kAddTyped(); } },

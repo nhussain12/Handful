@@ -158,6 +158,88 @@ FUNCTION_DEFINITIONS: list[ThinkSettingsV1FunctionsItem] = [
         },
     ),
     ThinkSettingsV1FunctionsItem(
+        name="add_step",
+        description="Add a new step to the current recipe (e.g. the dish gets more involved, or the user wants an extra step). A new notecard appears for it on screen.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "instruction": {
+                    "type": "string",
+                    "description": "The full instruction text for the new step",
+                },
+                "position": {
+                    "type": "integer",
+                    "description": "Optional 0-indexed position to insert the step at. Omit to add it at the end.",
+                },
+            },
+            "required": ["instruction"],
+        },
+    ),
+    ThinkSettingsV1FunctionsItem(
+        name="update_step",
+        description="Change the wording of a step. The notecard for that step updates to match. To change the step the user is currently on (e.g. they say 'change this step' or 'actually, do it this way'), omit step_index.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "instruction": {
+                    "type": "string",
+                    "description": "The new instruction text for that step",
+                },
+                "step_index": {
+                    "type": "integer",
+                    "description": "0-indexed step to change. Omit to change the current step the user is on.",
+                },
+            },
+            "required": ["instruction"],
+        },
+    ),
+    ThinkSettingsV1FunctionsItem(
+        name="remove_step",
+        description="Remove a step from the recipe that is no longer needed. Its notecard is removed. Omit step_index to remove the current step.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "step_index": {
+                    "type": "integer",
+                    "description": "0-indexed step to remove. Omit to remove the current step.",
+                },
+            },
+            "required": [],
+        },
+    ),
+    ThinkSettingsV1FunctionsItem(
+        name="add_ingredient",
+        description="Add an ingredient to the current recipe (e.g. the user decides to throw something extra in). It appears in the ingredient list on the cards.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Ingredient name, e.g. 'mushrooms'",
+                },
+                "quantity": {
+                    "type": "string",
+                    "description": "Amount, e.g. '1 cup' (optional)",
+                },
+            },
+            "required": ["name"],
+        },
+    ),
+    ThinkSettingsV1FunctionsItem(
+        name="remove_ingredient",
+        description="Remove an ingredient from the current recipe. It disappears from the ingredient list on the cards.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Ingredient name to remove",
+                },
+            },
+            "required": ["name"],
+        },
+    ),
+    ThinkSettingsV1FunctionsItem(
         name="add_note",
         description="Add a note to the current cooking session (e.g., what the user learned, changes made, rating)",
         parameters={

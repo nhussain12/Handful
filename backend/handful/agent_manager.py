@@ -138,7 +138,10 @@ class AgentSession:
                 {"type": "function_call", "name": func_name, "args": args, "result": json.loads(result)}
             )
 
-            RECIPE_FUNCTIONS = {"set_recipe", "advance_step", "go_to_step", "substitute_ingredient"}
+            RECIPE_FUNCTIONS = {
+                "set_recipe", "advance_step", "go_to_step", "substitute_ingredient",
+                "add_step", "update_step", "remove_step", "add_ingredient", "remove_ingredient",
+            }
             if func_name in RECIPE_FUNCTIONS:
                 state = self.recipe.get_state()
                 if state.get("success"):
@@ -156,6 +159,11 @@ class AgentSession:
             "advance_step": self.recipe.advance_step,
             "go_to_step": self.recipe.go_to_step,
             "substitute_ingredient": self.recipe.substitute_ingredient,
+            "add_step": self.recipe.add_step,
+            "update_step": self.recipe.update_step,
+            "remove_step": self.recipe.remove_step,
+            "add_ingredient": self.recipe.add_ingredient,
+            "remove_ingredient": self.recipe.remove_ingredient,
             "add_note": self.recipe.add_note,
             "save_session": self.recipe.save_session,
         }

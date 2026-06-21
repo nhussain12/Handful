@@ -96,6 +96,62 @@ class RecipeStateManager:
             "reason": reason,
         }
 
+    def add_step(self, instruction: str, position: int | None = None) -> dict:
+        r = self.session.recipe
+        if not r.is_active:
+            return {"success": False, "error": "No active recipe"}
+        if position is None or position < 0 or position > len(r.steps):
+            r.steps.append(instruction)
+            idx = len(r.steps) - 1
+        else:
+            r.steps.insert(position, instruction)
+            idx = position
+            if position <= r.current_step_index:
+                r.current_step_index += 1
+        return {"success": True, "step_index": idx, "total_steps": len(r.steps)}
+
+    def update_step(self, instruction: str, step_index: int | None = None) -> dict:
+        r = self.session.recipe
+        if not r.is_active:
+            return {"success": False, "error": "No active recipe"}
+        if step_index is None:
+            step_index = r.current_step_index  # "this step" => the one they're on
+        if 0 <= step_index < len(r.steps):
+            r.steps[step_index] = instruction
+            return {"success": True, "step_index": step_index, "instruction": instruction}
+        return {"success": False, "error": f"Step index {step_index} out of range"}
+
+    def remove_step(self, step_index: int | None = None) -> dict:
+        r = self.session.recipe
+        if not r.is_active:
+            return {"success": False, "error": "No active recipe"}
+        if step_index is None:
+            step_index = r.current_step_index
+        if 0 <= step_index < len(r.steps):
+            r.steps.pop(step_index)
+            if step_index < r.current_step_index:
+                r.current_step_index -= 1
+            if r.current_step_index >= len(r.steps):
+                r.current_step_index = max(0, len(r.steps) - 1)
+            return {"success": True, "removed_index": step_index, "total_steps": len(r.steps)}
+        return {"success": False, "error": f"Step index {step_index} out of range"}
+
+    def add_ingredient(self, name: str, quantity: str = "") -> dict:
+        r = self.session.recipe
+        if not r.is_active:
+            return {"success": False, "error": "No active recipe"}
+        r.ingredients.append(Ingredient(name=name.strip(), quantity=(quantity or "").strip()))
+        return {"success": True, "name": name, "quantity": quantity, "ingredient_count": len(r.ingredients)}
+
+    def remove_ingredient(self, name: str) -> dict:
+        r = self.session.recipe
+        if not r.is_active:
+            return {"success": False, "error": "No active recipe"}
+        before = len(r.ingredients)
+        r.ingredients = [i for i in r.ingredients if name.lower() not in i.name.lower()]
+        removed = before - len(r.ingredients)
+        return {"success": removed > 0, "name": name, "removed": removed, "ingredient_count": len(r.ingredients)}
+
     def add_note(self, note: str) -> dict:
         self.session.notes.append(SessionNote(content=note))
         return {"success": True, "note_count": len(self.session.notes)}
