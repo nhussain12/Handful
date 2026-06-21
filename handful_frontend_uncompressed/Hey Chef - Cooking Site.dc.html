@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  @keyframes scTicker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @keyframes scKenburns { 0% { transform: scale(1.06) translate(0,0); } 100% { transform: scale(1.16) translate(-1.5%, -2%); } }
+  @keyframes scFadeUp { from { transform: translateY(22px); } to { transform: translateY(0); } }
+  @keyframes scFadeUpSm { from { transform: translateY(12px); } to { transform: translateY(0); } }
+  @keyframes scArrow { 0%,100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
+  @keyframes scPop { 0% { transform: scale(.4) rotate(var(--tilt,0deg)); opacity: 0; } 60% { transform: scale(1.12) rotate(var(--tilt,0deg)); opacity: 1; } 100% { transform: scale(1) rotate(var(--tilt,0deg)); opacity: 1; } }
+  @keyframes scDeal { 0% { transform: translate(60px,40px) rotate(10deg); opacity: 0; } 100% { transform: translate(0,0) rotate(var(--tilt,0deg)); opacity: 1; } }
+  .sc-land-scroll::-webkit-scrollbar { width: 0; height: 0; }
+  @keyframes scPulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.7); opacity: .25; } }
+  @keyframes scRing { 0% { transform: scale(.5); opacity: .55; } 100% { transform: scale(2.6); opacity: 0; } }
+  @keyframes scWave { 0%,100% { transform: scaleY(.28); } 50% { transform: scaleY(1); } }
+  @keyframes scToast { 0% { transform: translate(-50%, -10px); opacity: 0; } 100% { transform: translate(-50%, 0); opacity: 1; } }
+  @keyframes scTimeup { 0%,100% { box-shadow: 0 30px 70px -18px rgba(0,0,0,.65); } 50% { box-shadow: 0 0 0 5px rgba(233,169,140,.8), 0 30px 70px -18px rgba(0,0,0,.65); } }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #17120F; }
+</style>
+</helmet>
+
+<!-- In production, voice over a WebSocket drives go(1)/go(-1) and the timers/swaps.
+     In this prototype, click anywhere / space / arrow keys simulate those triggers. -->
+<div onClick="{{ onStage }}" style="position:fixed;inset:0;overflow:hidden;background:radial-gradient(ellipse 70% 60% at 50% 46%, #241910 0%, #17120F 72%);font-family:'Helvetica Neue',Arial,sans-serif;user-select:none;">
+
+  <!-- STATIC WORDMARK -->
+  <div style="position:absolute;top:26px;left:30px;z-index:500;display:flex;align-items:center;gap:12px;">
+    <span style="font-family:'Anton',sans-serif;font-size:16px;letter-spacing:.04em;text-transform:uppercase;color:#EFE6D6;">Handful</span>
+    <span style="width:5px;height:5px;border-radius:50%;background:#E9A98C;"></span>
+    <span style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.18em;color:rgba(239,230,214,.5);">VOICE COOKING</span>
+  </div>
+
+  <!-- STAGE TABS -->
+  <div onClick="{{ stopProp }}" style="position:absolute;top:22px;right:30px;z-index:500;display:flex;align-items:center;gap:clamp(16px,2vw,28px);">
+    <span style="font-family:'Anton',sans-serif;font-size:16px;letter-spacing:.04em;text-transform:uppercase;color:#EFE6D6;cursor:pointer;">Upload</span>
+    <span onClick="{{ getStarted }}" style="font-family:'Anton',sans-serif;font-size:16px;letter-spacing:.04em;text-transform:uppercase;color:#EFE6D6;cursor:pointer;">New Recipe</span>
+    <span style="font-family:'Anton',sans-serif;font-size:16px;letter-spacing:.04em;text-transform:uppercase;color:#EFE6D6;cursor:pointer;">Cookbook</span>
+  </div>
+
+  <!-- SWAP CHIP / TOAST -->
+  <sc-if value="{{ chipShow }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;top:54px;left:50%;transform:translateX(-50%);z-index:600;display:flex;align-items:center;gap:9px;background:#EFE6D6;color:#17120F;border-radius:999px;padding:9px 18px;box-shadow:0 8px 24px rgba(0,0,0,.4);animation:scToast .4s ease-out;">
+      <span style="width:8px;height:8px;border-radius:50%;background:#C8501E;display:inline-block;"></span>
+      <span style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.16em;">{{ chipText }}</span>
+    </div>
+  </sc-if>
+
+  <!-- CARD STACK -->
+  <sc-for list="{{ cards }}" as="c" hint-placeholder-count="3">
+    <div ref="{{ c.ref }}" style="position:absolute;left:50%;top:50%;width:min(1120px,88vw);height:min(660px,72vh);background:var(--bg,#EFE6D6);color:var(--fg,#17120F);border-radius:16px;box-sizing:border-box;transition:transform .46s cubic-bezier(.22,1,.36,1), opacity .4s ease, box-shadow .4s ease;will-change:transform, opacity;">
+      <div style="position:absolute;left:30px;top:18px;bottom:18px;width:1.5px;background:var(--rule,rgba(200,80,30,.4));"></div>
+      <div style="position:absolute;inset:0;padding:42px 52px 40px 60px;box-sizing:border-box;">
+
+        <!-- IDLE -->
+        <sc-if value="{{ c.isIdle }}" hint-placeholder-val="{{ false }}">
+          <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:22px;">
+            <div style="position:relative;width:20px;height:20px;display:flex;align-items:center;justify-content:center;">
+              <div style="position:absolute;width:20px;height:20px;border-radius:50%;background:#E9A98C;animation:scRing 2.2s ease-out infinite;"></div>
+              <div style="width:15px;height:15px;border-radius:50%;background:#C8501E;animation:scPulse 2.2s ease-in-out infinite;"></div>
+            </div>
+            <div style="font-family:'Anton',sans-serif;font-size:60px;line-height:.98;text-transform:uppercase;color:var(--fg);max-width:520px;">Say 'Chef' to start</div>
+            <div style="font-family:'Space Mono',monospace;font-size:13px;letter-spacing:.2em;color:var(--muted);">Follow up with whatever you want Handful to do</div>
+          </div>
+        </sc-if>
+
+        <!-- OVERVIEW -->
+        <sc-if value="{{ c.isOverview }}" hint-placeholder-val="{{ false }}">
+          <div style="height:100%;display:flex;flex-direction:column;">
+            <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.2em;color:var(--accent);">WHAT WE'RE MAKING</div>
+            <div style="font-family:'Anton',sans-serif;font-size:50px;line-height:.96;text-transform:uppercase;color:var(--fg);margin-top:6px;">{{ c.overviewTitle }}</div>
+            <div style="font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.16em;color:var(--muted);margin-top:8px;">{{ c.overviewMeta }}</div>
+            <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.2em;color:var(--accent);margin-top:16px;margin-bottom:4px;">MISE EN PLACE</div>
+            <div style="flex:1;overflow:auto;display:grid;grid-template-columns:1fr 1fr;column-gap:30px;align-content:start;">
+              <sc-for list="{{ c.overviewIngredients }}" as="ing" hint-placeholder-count="6">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px;color:var(--fg);"><span>{{ ing.name }}</span><span style="opacity:.55;white-space:nowrap;">{{ ing.amt }}</span></div>
+              </sc-for>
+            </div>
+            <div style="font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.16em;color:var(--fg);margin-top:14px;">SAY 'START COOKING' TO BEGIN.</div>
+          </div>
+        </sc-if>
+
+        <!-- INGREDIENT STEP -->
+        <sc-if value="{{ c.isIngredient }}" hint-placeholder-val="{{ false }}">
+          <div style="height:100%;display:flex;flex-direction:column;position:relative;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+              <div>
+                <div style="font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.24em;color:var(--accent);">RECIPE</div>
+                <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-weight:700;font-size:clamp(18px,1.7vw,23px);color:var(--fg);margin-top:5px;">{{ c.recipeName }}</div>
+              </div>
+              <div style="display:flex;gap:12px;flex:none;">
+                <div style="width:44px;height:44px;border:1.5px solid var(--strong);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--fg);opacity:.8;">↗</div>
+                <div style="width:44px;height:44px;border:1.5px solid var(--strong);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--fg);opacity:.8;">+</div>
+              </div>
+            </div>
+            <div style="margin-top:clamp(26px,4.4vh,56px);">
+              <div style="font-family:'Space Mono',monospace;font-size:13px;letter-spacing:.22em;color:var(--accent);">{{ c.stepLabel }}</div>
+              <div style="font-family:'Anton',sans-serif;font-size:clamp(46px,5.4vw,90px);line-height:.98;text-transform:uppercase;color:var(--fg);margin-top:16px;max-width:64%;">{{ c.textPre }}<span style="{{ c.wordStyle }}">{{ c.textWord }}</span>{{ c.textPost }}</div>
+            </div>
+            <div style="position:absolute;right:0;bottom:0;width:clamp(300px,38%,440px);">
+              <sc-if value="{{ c.showSwapHint }}" hint-placeholder-val="{{ false }}">
+                <div style="text-align:right;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.12em;color:var(--accent);margin-bottom:12px;">PRESS E · "I'M OUT OF FETA"</div>
+              </sc-if>
+              <div style="border:1.5px solid var(--strong);border-radius:14px;padding:18px 20px;">
+                <div style="font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.2em;color:var(--accent);margin-bottom:10px;">IN THE PAN</div>
+                <sc-for list="{{ c.panel }}" as="ing" hint-placeholder-count="2">
+                  <div style="{{ ing.rowStyle }}"><span>{{ ing.name }}</span><span style="opacity:.62;white-space:nowrap;">{{ ing.amt }}</span></div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- TIMER STEP -->
+        <sc-if value="{{ c.isTimer }}" hint-placeholder-val="{{ false }}">
+          <div style="height:100%;display:flex;flex-direction:column;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+              <div>
+                <div style="font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.24em;color:var(--accent);">RECIPE</div>
+                <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-weight:700;font-size:clamp(18px,1.7vw,23px);color:var(--fg);margin-top:5px;">{{ c.recipeName }}</div>
+              </div>
+              <div style="display:flex;gap:12px;flex:none;">
+                <div style="width:44px;height:44px;border:1.5px solid var(--strong);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--fg);opacity:.8;">↗</div>
+                <div style="width:44px;height:44px;border:1.5px solid var(--strong);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--fg);opacity:.8;">+</div>
+              </div>
+            </div>
+            <div style="margin-top:clamp(20px,3vh,38px);">
+              <div style="font-family:'Space Mono',monospace;font-size:13px;letter-spacing:.22em;color:var(--accent);">{{ c.stepLabel }}</div>
+              <div style="font-family:'Anton',sans-serif;font-size:clamp(34px,3.8vw,56px);line-height:1.0;text-transform:uppercase;color:var(--fg);margin-top:12px;max-width:640px;">{{ c.textPre }}{{ c.textWord }}{{ c.textPost }}</div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;">
+              <div style="position:relative;width:184px;height:184px;">
+                <svg width="184" height="184" style="transform:rotate(-90deg);transform-origin:center;">
+                  <circle cx="92" cy="92" r="80" fill="none" stroke="var(--ring-track)" stroke-width="6"></circle>
+                  <circle cx="92" cy="92" r="80" fill="none" stroke="var(--ring-fg)" stroke-width="6" stroke-linecap="round" stroke-dasharray="{{ c.ringCirc }}" stroke-dashoffset="{{ c.ringOffset }}" style="transition:stroke-dashoffset 1s linear;"></circle>
+                </svg>
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;">
+                  <div style="font-family:'Space Mono',monospace;font-weight:700;font-size:40px;letter-spacing:.02em;color:var(--fg);">{{ c.timerDisplay }}</div>
+                  <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.2em;color:var(--accent);">{{ c.centerLabel }}</div>
+                </div>
+              </div>
+              <sc-if value="{{ c.showControls }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:9px;">
+                  <div style="display:flex;gap:8px;">
+                    <div onClick="{{ startTimer }}" style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.1em;border:1.5px solid var(--fg);border-radius:999px;padding:7px 13px;cursor:pointer;color:var(--fg);">▶ START</div>
+                    <div onClick="{{ pauseTimer }}" style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.1em;border:1.5px solid var(--fg);border-radius:999px;padding:7px 13px;cursor:pointer;color:var(--fg);">❚❚ PAUSE</div>
+                    <div onClick="{{ resetTimer }}" style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.1em;border:1.5px solid var(--fg);border-radius:999px;padding:7px 13px;cursor:pointer;color:var(--fg);">↺ RESET</div>
+                  </div>
+                  <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.14em;color:var(--muted);">SAY 'HANDFUL, PAUSE THE TIMER'</div>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </sc-for>
+
+  <!-- LISTENING / SPEAKING INDICATOR -->
+  <div style="position:absolute;left:30px;bottom:24px;z-index:500;display:flex;align-items:center;gap:11px;">
+    <sc-if value="{{ notSpeaking }}" hint-placeholder-val="{{ true }}">
+      <div style="position:relative;width:14px;height:14px;display:flex;align-items:center;justify-content:center;">
+        <div style="position:absolute;width:14px;height:14px;border-radius:50%;background:#E9A98C;animation:scRing 1.9s ease-out infinite;"></div>
+        <div style="width:11px;height:11px;border-radius:50%;background:#E9A98C;animation:scPulse 1.9s ease-in-out infinite;"></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ speaking }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:flex-end;gap:3px;height:16px;">
+        <div style="width:3px;height:16px;background:#EFE6D6;border-radius:2px;transform-origin:bottom;animation:scWave 1s ease-in-out infinite;animation-delay:0s;"></div>
+        <div style="width:3px;height:16px;background:#EFE6D6;border-radius:2px;transform-origin:bottom;animation:scWave 1s ease-in-out infinite;animation-delay:.12s;"></div>
+        <div style="width:3px;height:16px;background:#EFE6D6;border-radius:2px;transform-origin:bottom;animation:scWave 1s ease-in-out infinite;animation-delay:.24s;"></div>
+        <div style="width:3px;height:16px;background:#EFE6D6;border-radius:2px;transform-origin:bottom;animation:scWave 1s ease-in-out infinite;animation-delay:.36s;"></div>
+        <div style="width:3px;height:16px;background:#EFE6D6;border-radius:2px;transform-origin:bottom;animation:scWave 1s ease-in-out infinite;animation-delay:.48s;"></div>
+      </div>
+    </sc-if>
+    <span style="font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.18em;color:#EFE6D6;">{{ statusLabel }}</span>
+  </div>
+
+  <!-- NAV HINT -->
+  <div style="position:absolute;right:30px;bottom:24px;z-index:500;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.14em;color:rgba(239,230,214,.4);">CLICK · SPACE · ← → NAVIGATE</div>
+
+</div>
+
+<!-- ============================ LANDING ============================ -->
+<div ref="{{ landingRef }}" class="sc-land-scroll" style="position:fixed;inset:0;z-index:1000;overflow-y:auto;overflow-x:hidden;background:#EFE6D6;font-family:'Playfair Display',Georgia,serif;">
+
+  <!-- TOP BAR -->
+  <div style="position:absolute;top:0;left:0;right:0;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:22px clamp(20px,3.4vw,46px);box-sizing:border-box;">
+    <div style="display:flex;align-items:center;gap:11px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#17120F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block;"><path d="M6 14.5a3.6 3.6 0 0 1-1.4-6.92A3.4 3.4 0 0 1 8.2 4.2a3.8 3.8 0 0 1 7.6 0 3.4 3.4 0 0 1 3.6 3.38A3.6 3.6 0 0 1 18 14.5"></path><path d="M6 14.5v4.2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-4.2"></path><path d="M9.2 14.7v4.8M12 14.7v4.8M14.8 14.7v4.8"></path></svg>
+      <span style="font-family:'Anton',sans-serif;font-size:21px;letter-spacing:.03em;text-transform:uppercase;color:#17120F;">Handful</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:clamp(16px,2vw,30px);">
+      <span style="font-family:'Anton',sans-serif;font-size:21px;letter-spacing:.03em;text-transform:uppercase;color:#17120F;cursor:pointer;">Upload</span>
+      <span onClick="{{ getStarted }}" style="font-family:'Anton',sans-serif;font-size:21px;letter-spacing:.03em;text-transform:uppercase;color:#17120F;cursor:pointer;">New Recipe</span>
+      <span style="font-family:'Anton',sans-serif;font-size:21px;letter-spacing:.03em;text-transform:uppercase;color:#17120F;cursor:pointer;">Cookbook</span>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <div style="position:relative;min-height:100vh;box-sizing:border-box;padding:clamp(104px,15vh,168px) clamp(22px,5vw,72px) clamp(36px,5vh,64px);display:flex;align-items:center;overflow:hidden;">
+    <div style="position:absolute;inset:0;opacity:.06;mix-blend-mode:multiply;pointer-events:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E&quot;);"></div>
+    <div style="position:relative;width:100%;max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(28px,5vw,68px);align-items:center;">
+      <div>
+        <div style="display:flex;align-items:center;gap:11px;margin-bottom:24px;">
+          <span style="position:relative;display:inline-flex;width:13px;height:13px;align-items:center;justify-content:center;flex:none;"><span style="position:absolute;width:13px;height:13px;border-radius:50%;background:#E9A98C;animation:scRing 2s ease-out infinite;"></span><span style="width:9px;height:9px;border-radius:50%;background:#C8501E;animation:scPulse 2s ease-in-out infinite;"></span></span>
+          <span style="font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.26em;color:#C8501E;">VOICE-GUIDED COOKING</span>
+        </div>
+        <h1 style="margin:0;font-family:'Anton',sans-serif;font-size:clamp(58px,8.6vw,138px);line-height:1.08;text-transform:uppercase;color:#17120F;letter-spacing:0;">Hands-free<br>cooking</h1>
+        <p style="margin:clamp(26px,3.4vw,42px) 0 0;font-family:'Playfair Display',serif;font-style:italic;font-weight:400;font-size:clamp(20px,2.3vw,30px);line-height:1.32;color:#C8501E;max-width:20ch;">&mdash; for when your stomach is hungry and your hands are full.</p>
+        <div style="margin-top:clamp(30px,4.4vh,46px);display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+          <div onClick="{{ getStarted }}" style="display:inline-flex;align-items:center;gap:11px;background:#C8501E;color:#EFE6D6;font-family:'Space Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.16em;padding:17px 32px;border-radius:999px;cursor:pointer;box-shadow:0 18px 40px -16px rgba(200,80,30,.7);transition:transform .2s ease, box-shadow .2s ease;" style-hover="transform:translateY(-2px);box-shadow:0 22px 48px -16px rgba(200,80,30,.9);">GET STARTED <span style="font-size:14px;">↗</span></div>
+          <span style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.2em;color:rgba(23,18,15,.45);">SCROLL TO LEARN MORE</span>
+        </div>
+      </div>
+      <div style="position:relative;height:clamp(360px,54vh,560px);">
+        <div style="position:absolute;right:4%;top:12%;width:62%;height:60%;background:#C8501E;border-radius:6px;transform:rotate(5deg);box-shadow:0 26px 54px -26px rgba(200,80,30,.6);"></div>
+        <div style="position:absolute;left:3%;top:3%;width:80%;height:86%;background:#FBF7EF;padding:13px 13px 44px;box-sizing:border-box;border-radius:4px;transform:rotate(-3.2deg);box-shadow:0 36px 64px -28px rgba(23,18,15,.62);">
+          <div style="position:absolute;left:50%;top:-13px;transform:translateX(-50%) rotate(-4deg);width:108px;height:26px;background:rgba(233,169,140,.75);box-shadow:0 2px 7px rgba(0,0,0,.14);"></div>
+          <div style="width:100%;height:100%;background-image:url('hero.png');background-size:cover;background-position:center 44%;border-radius:2px;"></div>
+          <div style="position:absolute;left:18px;bottom:14px;display:flex;align-items:center;gap:8px;">
+            <span style="width:8px;height:8px;border-radius:50%;background:#C8501E;"></span>
+            <span style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.2em;color:#3A2A1E;">FRESH DOUGH · DAILY</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MARQUEE TICKER -->
+  <div style="position:relative;z-index:5;background:#17120F;overflow:hidden;padding:13px 0;">
+    <div style="display:inline-flex;white-space:nowrap;animation:scTicker 32s linear infinite;font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.24em;color:#EFE6D6;">
+      <span>EST. IN THE KITCHEN&nbsp;·&nbsp;VOICE-GUIDED&nbsp;·&nbsp;HANDS-FREE&nbsp;·&nbsp;SAY 'HANDFUL'&nbsp;·&nbsp;EST. IN THE KITCHEN&nbsp;·&nbsp;VOICE-GUIDED&nbsp;·&nbsp;HANDS-FREE&nbsp;·&nbsp;SAY 'HANDFUL'&nbsp;·&nbsp;</span>
+      <span>EST. IN THE KITCHEN&nbsp;·&nbsp;VOICE-GUIDED&nbsp;·&nbsp;HANDS-FREE&nbsp;·&nbsp;SAY 'HANDFUL'&nbsp;·&nbsp;EST. IN THE KITCHEN&nbsp;·&nbsp;VOICE-GUIDED&nbsp;·&nbsp;HANDS-FREE&nbsp;·&nbsp;SAY 'HANDFUL'&nbsp;·&nbsp;</span>
+    </div>
+  </div>
+
+  <!-- PANEL: HOW IT WORKS -->
+  <div style="position:relative;background:#EFE6D6;padding:clamp(60px,9vh,116px) clamp(22px,6vw,90px);overflow:hidden;">
+    <div style="position:absolute;inset:0;opacity:.05;mix-blend-mode:multiply;pointer-events:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n2'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n2)'/%3E%3C/svg%3E&quot;);"></div>
+
+    <div style="position:relative;max-width:1180px;margin:0 auto;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:clamp(28px,4vw,46px);">
+        <span style="width:8px;height:8px;border-radius:50%;background:#C8501E;"></span>
+        <span style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.28em;color:#C8501E;">HOW IT WORKS</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(30px,5vw,76px);align-items:start;">
+        <div>
+          <h2 style="margin:0;font-family:'Anton',sans-serif;font-size:clamp(44px,6.4vw,104px);line-height:1.04;text-transform:uppercase;color:#17120F;">Talk.<br>it listens.<br>you&nbsp;cook.</h2>
+          <p style="margin:clamp(26px,3vw,40px) 0 0;font-family:'Helvetica Neue',Arial,sans-serif;font-weight:400;font-size:clamp(17px,1.5vw,21px);line-height:1.62;color:#3A2A1E;max-width:46ch;">You talk, it listens. Say <em style="font-family:'Playfair Display',serif;font-style:italic;color:#C8501E;">'Chef'</em> and it reads every step aloud — timers, measurements, and your next move appearing as notecards you never have to touch. Out of an ingredient mid-step? Say so, and the recipe rewrites itself in real-time.</p>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:clamp(20px,2.6vw,30px);padding-top:8px;">
+          <div style="position:relative;background:#FBF7EF;padding:12px 12px 40px;border-radius:4px;transform:rotate(2.4deg);box-shadow:0 30px 56px -28px rgba(23,18,15,.55);">
+            <div style="position:absolute;left:26px;top:-12px;transform:rotate(-5deg);width:96px;height:24px;background:rgba(233,169,140,.75);box-shadow:0 2px 6px rgba(0,0,0,.12);"></div>
+            <div style="height:clamp(190px,22vw,250px);background-image:url('ingredients.png');background-size:cover;background-position:center;border-radius:2px;"></div>
+            <div style="position:absolute;left:18px;bottom:13px;display:flex;align-items:center;gap:8px;">
+              <span style="width:8px;height:8px;border-radius:50%;background:#C8501E;"></span>
+              <span style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.2em;color:#3A2A1E;">JUST LIST YOUR INGREDIENTS</span>
+            </div>
+          </div>
+          <div style="position:relative;background:#C8501E;border-radius:6px;padding:clamp(26px,3vw,38px) clamp(24px,2.6vw,34px) clamp(22px,2.4vw,30px);transform:rotate(-2deg);box-shadow:0 26px 52px -26px rgba(200,80,30,.6);">
+            <div style="font-family:'Playfair Display',serif;font-style:italic;font-size:clamp(30px,4.4vw,52px);color:#EFE6D6;line-height:1;">no&nbsp;hands,</div>
+            <div style="font-family:'Anton',sans-serif;text-transform:uppercase;font-size:clamp(34px,5vw,60px);color:#17120F;line-height:.96;margin-top:4px;">all flavor.</div>
+            <div style="margin-top:18px;display:flex;align-items:center;gap:8px;">
+              <span style="width:7px;height:7px;border-radius:50%;background:#17120F;"></span>
+              <span style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.2em;color:rgba(23,18,15,.7);">HANDS-FREE · ALWAYS</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- ============================ NEW RECIPE SCREEN ============================ -->
+<div style="{{ kScreenStyle }}">
+  <!-- TOP BAR -->
+  <div style="position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:22px clamp(20px,3.4vw,46px);box-sizing:border-box;background:rgba(23,18,15,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">
+    <div style="display:flex;align-items:center;gap:11px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EFE6D6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block;"><path d="M6 14.5a3.6 3.6 0 0 1-1.4-6.92A3.4 3.4 0 0 1 8.2 4.2a3.8 3.8 0 0 1 7.6 0 3.4 3.4 0 0 1 3.6 3.38A3.6 3.6 0 0 1 18 14.5"></path><path d="M6 14.5v4.2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-4.2"></path><path d="M9.2 14.7v4.8M12 14.7v4.8M14.8 14.7v4.8"></path></svg>
+      <span style="font-family:'Anton',sans-serif;font-size:21px;letter-spacing:.03em;text-transform:uppercase;color:#EFE6D6;">Handful</span>
+    </div>
+    <div onClick="{{ closeKitchen }}" style="display:inline-flex;align-items:center;gap:9px;font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.16em;color:#EFE6D6;cursor:pointer;border:1.5px solid rgba(239,230,214,.5);border-radius:999px;padding:10px 20px;transition:background .2s ease, color .2s ease, border-color .2s ease;" style-hover="background:#EFE6D6;color:#17120F;border-color:#EFE6D6;">CLOSE <span style="font-size:13px;">✕</span></div>
+  </div>
+  <!-- KITCHEN PANEL (Part B) -->
+  <div ref="{{ kitchenRef }}" style="position:relative;background:#17120F;color:#EFE6D6;padding:clamp(60px,9vh,116px) clamp(22px,6vw,80px) clamp(72px,11vh,132px);overflow:hidden;">
+    <div style="position:absolute;inset:0;opacity:.07;mix-blend-mode:overlay;pointer-events:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n3'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n3)'/%3E%3C/svg%3E&quot;);"></div>
+
+    <div style="position:relative;max-width:1080px;margin:0 auto;">
+      <div style="display:flex;align-items:center;gap:11px;">
+        <span style="position:relative;display:inline-flex;width:13px;height:13px;align-items:center;justify-content:center;flex:none;"><span style="position:absolute;width:13px;height:13px;border-radius:50%;background:#E9A98C;animation:scRing 1.9s ease-out infinite;"></span><span style="width:9px;height:9px;border-radius:50%;background:#E9A98C;animation:scPulse 1.9s ease-in-out infinite;"></span></span>
+        <span style="font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.24em;color:#E9A98C;">{{ kStatus }}</span>
+      </div>
+      <h2 style="margin:14px 0 0;font-family:'Anton',sans-serif;font-size:clamp(40px,6.4vw,98px);line-height:.86;text-transform:uppercase;color:#EFE6D6;">What's in your kitchen?</h2>
+      <div style="font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.2em;color:rgba(239,230,214,.55);margin-top:14px;">SAY YOUR INGREDIENTS — I'LL FIND THE RECIPE.</div>
+
+      <div style="margin-top:clamp(28px,3.6vw,44px);background:#3A2A1E;border:1px solid rgba(239,230,214,.1);border-radius:18px;padding:clamp(22px,2.6vw,32px);box-shadow:0 30px 60px -30px rgba(0,0,0,.7);">
+        <div style="font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.04em;color:rgba(239,230,214,.5);min-height:18px;">
+          <sc-if value="{{ kHasHeard }}" hint-placeholder-val="{{ false }}">heard… {{ kHeard }}</sc-if>
+        </div>
+        <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.24em;color:#E9A98C;margin-top:18px;">ON THE COUNTER</div>
+        <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;min-height:50px;align-content:flex-start;align-items:flex-start;">
+          <sc-for list="{{ kChips }}" as="chip" hint-placeholder-count="0">
+            <div style="{{ chip.style }}">
+              <div style="display:inline-flex;align-items:center;gap:8px;background:#EFE6D6;color:#17120F;border-radius:9px;padding:10px 15px;font-family:'Space Mono',monospace;font-size:13px;letter-spacing:.03em;box-shadow:0 9px 20px -9px rgba(0,0,0,.6);">
+                <span style="width:7px;height:7px;border-radius:50%;background:#C8501E;flex:none;"></span>{{ chip.name }}
+              </div>
+            </div>
+          </sc-for>
+          <sc-if value="{{ kEmpty }}" hint-placeholder-val="{{ true }}">
+            <span style="font-family:'Space Mono',monospace;font-size:12px;color:rgba(239,230,214,.32);align-self:center;">…nothing yet — tap to speak or type below</span>
+          </sc-if>
+        </div>
+        <div style="margin-top:22px;display:flex;align-items:center;gap:10px;">
+          <input value="{{ kTyped }}" onChange="{{ kType }}" onKeyDown="{{ kKey }}" placeholder="…or type them" style="flex:1;min-width:0;background:rgba(239,230,214,.06);border:1px solid rgba(239,230,214,.18);border-radius:999px;padding:13px 18px;color:#EFE6D6;font-family:'Space Mono',monospace;font-size:13px;letter-spacing:.03em;outline:none;box-sizing:border-box;">
+          <div onClick="{{ kAdd }}" style="flex:none;display:inline-flex;align-items:center;gap:8px;background:#EFE6D6;color:#17120F;font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.14em;padding:13px 20px;border-radius:999px;cursor:pointer;">ADD <span style="color:#C8501E;">+</span></div>
+        </div>
+      </div>
+
+      <sc-if value="{{ kDealt }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:clamp(34px,4vw,52px);">
+          <div style="display:inline-flex;align-items:center;gap:8px;background:#E9A98C;color:#17120F;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.2em;padding:7px 13px;border-radius:5px;transform:rotate(-1.5deg);">HANDFUL SAYS</div>
+          <p style="margin:16px 0 0;font-family:'Playfair Display',serif;font-style:italic;font-size:clamp(20px,2.4vw,30px);color:#EFE6D6;max-width:26ch;line-height:1.3;">Got it — flour, eggs, butter. Three ways we could go:</p>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(16px,2vw,24px);margin-top:clamp(26px,3vw,40px);">
+            <sc-for list="{{ kOptions }}" as="opt" hint-placeholder-count="3">
+              <div style="{{ opt.style }}">
+                <div style="background:#EFE6D6;color:#17120F;border-radius:12px;padding:18px 18px 20px;box-shadow:0 22px 46px -22px rgba(0,0,0,.6);">
+                  <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <span style="font-family:'Anton',sans-serif;font-size:30px;color:#C8501E;line-height:1;">{{ opt.num }}</span>
+                    <div onClick="{{ pickOption }}" style="width:40px;height:40px;border-radius:50%;background:#C8501E;color:#EFE6D6;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;flex:none;">↗</div>
+                  </div>
+                  <div style="height:62px;border-radius:6px;margin:15px 0;background:repeating-linear-gradient(45deg,#E9A98C 0 8px,#EFE6D6 8px 16px);display:flex;align-items:center;justify-content:center;">
+                    <span style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.18em;color:#3A2A1E;background:rgba(239,230,214,.75);padding:2px 7px;border-radius:3px;">RECIPE PHOTO</span>
+                  </div>
+                  <div style="font-family:'Anton',sans-serif;text-transform:uppercase;font-size:clamp(18px,1.5vw,23px);line-height:.96;color:#17120F;">{{ opt.title }}</div>
+                  <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.18em;color:rgba(23,18,15,.55);margin-top:8px;">{{ opt.meta }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:clamp(22px,2.6vw,32px);font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.22em;color:rgba(239,230,214,.5);">SAY A NUMBER OR A NAME TO BEGIN.</div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ kIdle }}" hint-placeholder-val="{{ true }}">
+        <div onClick="{{ kStart }}" style="margin-top:26px;display:inline-flex;align-items:center;gap:10px;border:1.5px solid rgba(239,230,214,.4);color:#EFE6D6;font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.16em;padding:14px 26px;border-radius:999px;cursor:pointer;" style-hover="border-color:#E9A98C;color:#E9A98C;">TAP TO SPEAK <span>↗</span></div>
+      </sc-if>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  flow = [
+    { kind: 'idle' },
+    { kind: 'overview', title: 'Skillet Shakshuka', meta: 'SERVES 2 · 30 MIN · EASY',
+      ingredients: [
+        { name: 'Olive Oil', amt: '2 tbsp' },
+        { name: 'Yellow Onion', amt: '1' },
+        { name: 'Red Bell Pepper', amt: '1' },
+        { name: 'Garlic', amt: '3 cloves' },
+        { name: 'Ground Cumin', amt: '1 tsp' },
+        { name: 'Smoked Paprika', amt: '1 tsp' },
+        { name: 'Crushed Tomatoes', amt: '28 oz' },
+        { name: 'Eggs', amt: '4' },
+        { name: 'Feta', amt: '½ cup' },
+        { name: 'Parsley', amt: 'to finish' },
+        { name: 'Salt + Pepper', amt: 'to taste' },
+      ] },
+    { kind: 'ingredient', n: 1, text: 'Warm the olive oil over medium heat.', panel: [{ name: 'Olive Oil', amt: '2 tbsp' }] },
+    { kind: 'ingredient', n: 2, text: 'Add the onion and bell pepper.', panel: [{ name: 'Onion', amt: '1' }, { name: 'Red Pepper', amt: '1' }] },
+    { kind: 'timer', n: 3, text: 'Soften, stirring now and then.', label: 'SAUTÉ', duration: 300 },
+    { kind: 'ingredient', n: 4, text: 'Stir in the garlic, cumin, and paprika.', panel: [{ name: 'Garlic', amt: '3 cloves' }, { name: 'Cumin', amt: '1 tsp' }, { name: 'Paprika', amt: '1 tsp' }] },
+    { kind: 'ingredient', n: 5, text: 'Pour in the crushed tomatoes; season.', panel: [{ name: 'Crushed Tomatoes', amt: '28 oz' }, { name: 'Salt + Pepper', amt: '' }] },
+    { kind: 'timer', n: 6, text: 'Simmer until thickened.', label: 'SIMMER', duration: 600 },
+    { kind: 'ingredient', n: 7, text: 'Make four wells; crack in the eggs.', panel: [{ name: 'Eggs', amt: '4' }] },
+    { kind: 'timer', n: 8, text: 'Cover and cook until the whites set.', label: 'POACH', duration: 480 },
+    { kind: 'ingredient', n: 9, text: 'Top with feta and parsley. Serve.',
+      panel: [{ name: 'Feta', amt: '½ cup' }, { name: 'Parsley', amt: '' }],
+      swap: { rowFrom: 'Feta', rowTo: 'Goat Cheese', pre: 'Top with ', word: 'goat cheese', post: ' and parsley. Serve.', chip: "SWAPPED · FETA → GOAT CHEESE" } },
+  ];
+
+  state = { index: 0, dir: 1, tick: 0, timers: {}, swapped: {}, speaking: false, chip: null, started: false, kitchenOpen: false, kPhase: 'idle', kChips: [], kTyped: '' };
+
+  kIngredientsSeq = ['flour', 'eggs', 'butter', 'garlic', 'parmesan'];
+  kOptionsData = [
+    { num: '01', title: 'Brown Butter Pasta', meta: '20 MIN · EASY', tilt: -2, delay: 0 },
+    { num: '02', title: 'Garlic Parmesan Flatbread', meta: '35 MIN · MEDIUM', tilt: 1.5, delay: 0.16 },
+    { num: '03', title: 'Classic Pâte à Choux', meta: '45 MIN · MEDIUM', tilt: -1, delay: 0.32 },
+  ];
+
+  skins = {
+    cream: { bg:'#EFE6D6', fg:'#17120F', accent:'#C8501E', muted:'rgba(23,18,15,.55)', line:'rgba(23,18,15,.2)', strong:'#17120F', hlBg:'#E9A98C', hlFg:'#17120F', ringTrack:'rgba(23,18,15,.14)', ringFg:'#C8501E', rule:'rgba(200,80,30,.45)' },
+    rust:  { bg:'#C8501E', fg:'#EFE6D6', accent:'#17120F', muted:'rgba(239,230,214,.72)', line:'rgba(239,230,214,.34)', strong:'rgba(239,230,214,.5)', hlBg:'#17120F', hlFg:'#E9A98C', ringTrack:'rgba(239,230,214,.22)', ringFg:'#EFE6D6', rule:'rgba(239,230,214,.4)' },
+    dark:  { bg:'#17120F', fg:'#EFE6D6', accent:'#E9A98C', muted:'rgba(239,230,214,.55)', line:'rgba(239,230,214,.18)', strong:'rgba(239,230,214,.4)', hlBg:'#E9A98C', hlFg:'#17120F', ringTrack:'rgba(239,230,214,.14)', ringFg:'#E9A98C', rule:'rgba(233,169,140,.5)' },
+  };
+  skinName(card) {
+    if (!card) return 'cream';
+    if (card.kind === 'timer') return 'rust';
+    if (card.kind === 'overview') return 'dark';
+    return 'cream';
+  }
+
+  componentDidMount() {
+    this._key = this.onKey.bind(this);
+    window.addEventListener('keydown', this._key);
+    this._iv = setInterval(() => this.tick(), 1000);
+    this._kTOs = [];
+    this._onScroll = this.onScroll.bind(this);
+    if (this._landingEl) this._landingEl.addEventListener('scroll', this._onScroll, { passive: true });
+    this.applyCardLayout();
+    this.applyLanding();
+  }
+  componentDidUpdate() {
+    this.applyCardLayout();
+    this.applyLanding();
+  }
+  applyLanding() {
+    const el = this._landingEl;
+    if (!el) return;
+    const on = !this.state.started;
+    el.style.opacity = on ? '1' : '0';
+    el.style.transform = on ? 'translateY(0)' : 'translateY(-3%)';
+    el.style.pointerEvents = on ? 'auto' : 'none';
+  }
+  openKitchen() {
+    this._kStarted = false;
+    (this._kTOs || []).forEach(clearTimeout);
+    this._kTOs = [];
+    this.setState({ kitchenOpen: true, started: false, kPhase: 'idle', kChips: [], kTyped: '' }, () => {
+      setTimeout(() => this.kStart(), 520);
+    });
+  }
+  closeKitchen() { this.setState({ kitchenOpen: false }); }
+  start() {
+    if (this.state.started) return;
+    (this._kTOs || []).forEach(clearTimeout);
+    this._kTOs = [];
+    this.setState({ started: true });
+  }
+  getRef(i) {
+    this._refs = this._refs || {};
+    if (!this._refs[i]) this._refs[i] = (el) => { this._cardEls = this._cardEls || {}; if (el) this._cardEls[i] = el; };
+    return this._refs[i];
+  }
+  setStyle(el, key, val) {
+    if (el['_s_' + key] !== val) { el['_s_' + key] = val; el.style[key] = val; }
+  }
+  applyCardLayout() {
+    const els = this._cardEls || {};
+    const idx = this.state.index;
+    for (let i = 0; i < this.flow.length; i++) {
+      const el = els[i];
+      if (!el) continue;
+      const pos = i - idx;
+      const L = this.cardLayout(pos, i);
+      const card = this.flow[i];
+      const sk = this.skins[this.skinName(card)];
+      el.style.background = sk.bg;
+      el.style.color = sk.fg;
+      el.style.setProperty('--bg', sk.bg);
+      el.style.setProperty('--fg', sk.fg);
+      el.style.setProperty('--accent', sk.accent);
+      el.style.setProperty('--muted', sk.muted);
+      el.style.setProperty('--line', sk.line);
+      el.style.setProperty('--strong', sk.strong);
+      el.style.setProperty('--hl-bg', sk.hlBg);
+      el.style.setProperty('--hl-fg', sk.hlFg);
+      el.style.setProperty('--ring-track', sk.ringTrack);
+      el.style.setProperty('--ring-fg', sk.ringFg);
+      el.style.setProperty('--rule', sk.rule);
+      let anim = 'none';
+      if (card.kind === 'timer' && pos === 0) {
+        const t = this.state.timers[i];
+        if (t && t.timeUp) anim = 'scTimeup 1.1s ease-in-out infinite';
+      }
+      this.setStyle(el, 'transform', L.transform);
+      this.setStyle(el, 'opacity', L.opacity);
+      this.setStyle(el, 'zIndex', L.zIndex);
+      this.setStyle(el, 'pointerEvents', L.pointerEvents);
+      this.setStyle(el, 'boxShadow', anim === 'none' ? L.boxShadow : '');
+      this.setStyle(el, 'animation', anim);
+    }
+  }
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this._key);
+    clearInterval(this._iv);
+    clearTimeout(this._spkTO);
+    clearTimeout(this._chipTO);
+    (this._kTOs || []).forEach(clearTimeout);
+    if (this._landingEl && this._onScroll) this._landingEl.removeEventListener('scroll', this._onScroll);
+  }
+
+  onScroll() { return; }
+  kStart() {
+    if (this._kStarted) return;
+    this._kStarted = true;
+    this.setState({ kPhase: 'listening', kChips: [], kTyped: '' });
+    let d = 450;
+    this.kIngredientsSeq.forEach((name) => {
+      this._kTOs.push(setTimeout(() => this.kAddChip(name), d));
+      d += 720;
+    });
+    this._kTOs.push(setTimeout(() => this.setState({ kPhase: 'dealt' }), d + 350));
+  }
+  kAddChip(name) {
+    const tilt = +(Math.random() * 10 - 5).toFixed(2);
+    this.setState((s) => ({ kChips: [...s.kChips, { name, tilt }] }));
+  }
+  kAddTyped() {
+    const v = (this.state.kTyped || '').trim();
+    if (!v) return;
+    const tilt = +(Math.random() * 10 - 5).toFixed(2);
+    this._kStarted = true;
+    this.setState((s) => ({ kChips: [...s.kChips, { name: v, tilt }], kTyped: '', kPhase: s.kPhase === 'idle' ? 'listening' : s.kPhase }));
+  }
+
+  onKey(e) {
+    if (!this.state.started) return;
+    const k = e.key;
+    if (k === ' ' || k === 'ArrowRight' || k === 'ArrowDown' || k === 'Enter' || k === 'PageDown') { e.preventDefault(); this.go(1); }
+    else if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'Backspace' || k === 'PageUp') { e.preventDefault(); this.go(-1); }
+    else if (k === 'e' || k === 'E') { this.doSwap(); }
+  }
+
+  go(delta) {
+    if (!this.state.started) return;
+    this.flashSpeaking();
+    this.setState((s) => {
+      const ni = Math.max(0, Math.min(this.flow.length - 1, s.index + delta));
+      if (ni === s.index) return null;
+      return { index: ni, dir: delta > 0 ? 1 : -1 };
+    }, () => this.onActivate());
+  }
+
+  onActivate() {
+    const i = this.state.index;
+    const card = this.flow[i];
+    if (card && card.kind === 'timer') {
+      this.setState((s) => {
+        const t = { ...s.timers };
+        if (!t[i]) t[i] = { remaining: card.duration, running: true, timeUp: false };
+        else if (!t[i].timeUp) t[i] = { ...t[i], running: true };
+        return { timers: t };
+      });
+    }
+  }
+
+  tick() {
+    const i = this.state.index;
+    const card = this.flow[i];
+    if (!card || card.kind !== 'timer') return;
+    this.setState((s) => {
+      const cur = s.timers[i];
+      if (!cur || !cur.running) return null;
+      const rem = cur.remaining - 1;
+      if (rem <= 0) {
+        this.flashSpeaking();
+        return { timers: { ...s.timers, [i]: { ...cur, remaining: 0, running: false, timeUp: true } } };
+      }
+      return { timers: { ...s.timers, [i]: { ...cur, remaining: rem } } };
+    });
+  }
+
+  startTimer(e) {
+    if (e) e.stopPropagation();
+    const i = this.state.index;
+    const card = this.flow[i];
+    if (!card || card.kind !== 'timer') return;
+    this.setState((s) => {
+      const cur = s.timers[i] || { remaining: card.duration, running: false, timeUp: false };
+      const rem = cur.timeUp || cur.remaining <= 0 ? card.duration : cur.remaining;
+      return { timers: { ...s.timers, [i]: { remaining: rem, running: true, timeUp: false } } };
+    });
+  }
+  pauseTimer(e) {
+    if (e) e.stopPropagation();
+    const i = this.state.index;
+    this.setState((s) => {
+      const cur = s.timers[i];
+      if (!cur) return null;
+      return { timers: { ...s.timers, [i]: { ...cur, running: false } } };
+    });
+  }
+  resetTimer(e) {
+    if (e) e.stopPropagation();
+    const i = this.state.index;
+    const card = this.flow[i];
+    if (!card || card.kind !== 'timer') return;
+    this.setState((s) => ({ timers: { ...s.timers, [i]: { remaining: card.duration, running: false, timeUp: false } } }));
+  }
+
+  flashSpeaking() {
+    clearTimeout(this._spkTO);
+    this.setState({ speaking: true });
+    this._spkTO = setTimeout(() => this.setState({ speaking: false }), 2600);
+  }
+
+  doSwap() {
+    const i = this.state.index;
+    const card = this.flow[i];
+    if (!card || !card.swap || this.state.swapped[i]) return;
+    this.setState((s) => ({ swapped: { ...s.swapped, [i]: true }, chip: card.swap.chip }));
+    this.flashSpeaking();
+    clearTimeout(this._chipTO);
+    this._chipTO = setTimeout(() => this.setState({ chip: null }), 3600);
+  }
+
+  fmt(s) {
+    const m = Math.floor(s / 60), sec = s % 60;
+    return String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+  }
+
+  recipeName() {
+    if (!this._recipeName) {
+      const ov = this.flow.find((c) => c.kind === 'overview');
+      this._recipeName = ov ? ov.title : '';
+    }
+    return this._recipeName;
+  }
+
+  cardLayout(pos, i) {
+    const jit = (((i * 53) % 9) - 4) * 0.5;
+    const tf = (x, y, r, sc) => `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${r}deg) scale(${sc})`;
+    if (pos < 0) return { transform: tf(230, -220, 12, 1.04), opacity: '0', zIndex: '300', pointerEvents: 'none', boxShadow: '0 30px 70px -18px rgba(0,0,0,.5)' };
+    if (pos === 0) return { transform: tf(0, 0, 0, 1), opacity: '1', zIndex: '100', pointerEvents: 'auto', boxShadow: '0 30px 70px -18px rgba(0,0,0,.65), 0 6px 20px rgba(0,0,0,.3)' };
+    if (pos === 1) return { transform: tf(0, 18, -3.5 + jit, 0.953), opacity: '0.5', zIndex: '99', pointerEvents: 'none', boxShadow: '0 20px 50px -20px rgba(0,0,0,.5)' };
+    if (pos === 2) return { transform: tf(0, 32, 3 + jit, 0.915), opacity: '0.3', zIndex: '98', pointerEvents: 'none', boxShadow: '0 16px 40px -22px rgba(0,0,0,.5)' };
+    if (pos === 3) return { transform: tf(0, 46, -2.4 + jit, 0.88), opacity: '0.15', zIndex: '97', pointerEvents: 'none', boxShadow: 'none' };
+    return { transform: tf(0, 56, 1.6 + jit, 0.855), opacity: '0', zIndex: '96', pointerEvents: 'none', boxShadow: 'none' };
+  }
+
+  buildCard(i) {
+    const card = this.flow[i];
+    const idx = this.state.index;
+    const pos = i - idx;
+    const active = pos === 0;
+    const v = {
+      ref: this.getRef(i),
+      isIdle: card.kind === 'idle',
+      isOverview: card.kind === 'overview',
+      isIngredient: card.kind === 'ingredient',
+      isTimer: card.kind === 'timer',
+      stepLabel: '', textPre: '', textWord: '', textPost: '', wordStyle: {},
+      panel: [], overviewIngredients: [], overviewTitle: '', overviewMeta: '',
+      timerDisplay: '', centerLabel: '', ringCirc: 502.65, ringOffset: 0,
+      showControls: false, showSwapHint: false, recipeName: this.recipeName(),
+    };
+    if (card.kind === 'overview') {
+      v.overviewTitle = card.title;
+      v.overviewMeta = card.meta;
+      v.overviewIngredients = card.ingredients;
+    }
+    if (card.kind === 'ingredient' || card.kind === 'timer') {
+      v.stepLabel = 'STEP ' + String(card.n).padStart(2, '0') + ' / 09';
+      const swapped = !!this.state.swapped[i];
+      if (card.swap && swapped) {
+        v.textPre = card.swap.pre; v.textWord = card.swap.word; v.textPost = card.swap.post;
+        v.wordStyle = { background: 'var(--hl-bg)', color: 'var(--hl-fg)', padding: '0 8px', borderRadius: '6px' };
+      } else {
+        v.textPre = card.text; v.textWord = ''; v.textPost = '';
+      }
+      if (card.swap && !swapped && active) v.showSwapHint = true;
+    }
+    if (card.kind === 'ingredient') {
+      const swapped = !!this.state.swapped[i];
+      const rowBase = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 0', borderBottom: '1px dashed var(--line)', fontSize: '16px', color: 'var(--fg)' };
+      const rowHi = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 13px', margin: '3px -13px', borderRadius: '9px', fontSize: '16px', color: '#17120F', background: '#E9A98C' };
+      v.panel = card.panel.map((ing) => {
+        const isSwap = card.swap && swapped && ing.name === card.swap.rowFrom;
+        return { name: isSwap ? card.swap.rowTo : ing.name, amt: ing.amt, rowStyle: isSwap ? rowHi : rowBase };
+      });
+    }
+    if (card.kind === 'timer') {
+      const t = this.state.timers[i];
+      const remaining = t ? t.remaining : card.duration;
+      const timeUp = t ? t.timeUp : false;
+      v.timerDisplay = this.fmt(remaining);
+      v.ringOffset = v.ringCirc * (1 - remaining / card.duration);
+      v.centerLabel = timeUp ? "TIME'S UP" : card.label;
+      v.showControls = active;
+    }
+    return v;
+  }
+
+  renderVals() {
+    const idx = this.state.index;
+    const kOn = this.state.kitchenOpen && !this.state.started;
+    const kScreenStyle = {
+      position: 'fixed', inset: 0, zIndex: 1100, overflowY: 'auto', overflowX: 'hidden',
+      background: '#17120F', fontFamily: "'Helvetica Neue',Arial,sans-serif",
+      opacity: kOn ? 1 : 0,
+      transform: kOn ? 'translateY(0)' : 'translateY(2%)',
+      pointerEvents: kOn ? 'auto' : 'none',
+    };
+    const cards = this.flow.map((_, i) => this.buildCard(i));
+    const cur = this.flow[idx];
+    let tickerText;
+    if (cur.kind === 'idle') {
+      tickerText = "HANDS-FREE COOKING · READY WHEN YOU ARE · SAY 'HANDFUL' TO START · ";
+    } else if (cur.kind === 'overview') {
+      tickerText = "NOW COOKING · SKILLET SHAKSHUKA · MISE EN PLACE · SAY 'START COOKING' · HANDS-FREE MODE · ";
+    } else {
+      const lbl = 'STEP ' + String(cur.n).padStart(2, '0') + ' / 09';
+      tickerText = 'NOW COOKING · SKILLET SHAKSHUKA · ' + lbl + " · SAY 'HANDFUL' · HANDS-FREE MODE · ";
+    }
+    return {
+      tickerText,
+      cards,
+      speaking: this.state.speaking,
+      notSpeaking: !this.state.speaking,
+      statusLabel: this.state.speaking ? 'SPEAKING…' : 'LISTENING',
+      chipShow: !!this.state.chip,
+      chipText: this.state.chip || '',
+      started: this.state.started,
+      landingRef: (el) => { this._landingEl = el; },
+      kScreenStyle,
+      closeKitchen: (e) => { if (e) e.stopPropagation(); this.closeKitchen(); },
+      stopProp: (e) => { if (e) e.stopPropagation(); },
+      getStarted: (e) => { if (e) e.stopPropagation(); this.openKitchen(); },
+      kStatus: this.state.kPhase === 'idle' ? 'TAP TO SPEAK' : (this.state.kPhase === 'dealt' ? 'HERE YOU GO' : 'LISTENING…'),
+      kIdle: this.state.kPhase === 'idle',
+      kDealt: this.state.kPhase === 'dealt',
+      kEmpty: this.state.kChips.length === 0,
+      kHasHeard: this.state.kChips.length > 0,
+      kHeard: this.state.kChips.map((c) => c.name).join(' · '),
+      kChips: this.state.kChips.map((c) => ({ name: c.name, style: { display: 'inline-block', '--tilt': c.tilt + 'deg', transform: 'rotate(' + c.tilt + 'deg)', animation: 'scPop .5s both' } })),
+      kOptions: this.kOptionsData.map((o) => ({ num: o.num, title: o.title, meta: o.meta, style: { '--tilt': o.tilt + 'deg', transform: 'rotate(' + o.tilt + 'deg)', animation: 'scDeal .55s ' + o.delay + 's both cubic-bezier(.2,1,.36,1)' } })),
+      kTyped: this.state.kTyped,
+      kType: (e) => this.setState({ kTyped: e.target.value }),
+      kKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); this.kAddTyped(); } },
+      kAdd: () => this.kAddTyped(),
+      kStart: () => this.kStart(),
+      kitchenRef: (el) => { this._kitchenEl = el; },
+      pickOption: (e) => { if (e) e.stopPropagation(); this.start(); },
+      onStage: () => this.go(1),
+      startTimer: (e) => this.startTimer(e),
+      pauseTimer: (e) => this.pauseTimer(e),
+      resetTimer: (e) => this.resetTimer(e),
+    };
+  }
+}
+</script>
+</body>
+</html>
