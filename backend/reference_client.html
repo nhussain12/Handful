@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Handful — Cooking AI</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f3eee9; color: #2d2824; height: 100vh; display: flex; flex-direction: column;
+}
+#top-bar {
+  display: flex; align-items: center; gap: 8px; padding: 12px 16px;
+  border-bottom: 1px solid #d8d0c8; flex-shrink: 0;
+}
+.btn { padding: 6px 14px; border-radius: 6px; border: none; font-size: 14px; cursor: pointer; transition: all .2s; white-space: nowrap; }
+.btn-start { background: #d45b2e; color: #f3eee9; }
+.btn-start:hover { background: #c04e24; }
+.btn-start.running { background: #b84828; }
+.btn-start.running:hover { background: #a63e20; }
+.btn-mute { background: #e8e0d8; color: #6a6058; }
+.btn-mute:hover:not(:disabled) { background: #ddd5cc; color: #2d2824; }
+.btn-mute:disabled { opacity: .4; cursor: default; }
+.btn-mute.unmuted { background: #e8e0d8; color: #d45b2e; }
+#status { font-size: 13px; color: #8a8078; margin-left: auto; }
+#status.connected { color: #d45b2e; }
+#status.error { color: #cc3333; }
+#timers {
+  display: flex; gap: 8px; padding: 8px 16px; flex-shrink: 0;
+  overflow-x: auto; border-bottom: 1px solid #d8d0c8;
+  justify-content: center;
+}
+.timer-card {
+  background: #e8e0d8; border: 1px solid #d8d0c8; border-radius: 8px;
+  padding: 6px 12px; white-space: nowrap; font-size: 14px;
+}
+.timer-card .label { color: #8a8078; font-size: 12px; }
+.timer-card .time { font-variant-numeric: tabular-nums; color: #d45b2e; font-weight: 600; }
+.timer-card.expired .time { color: #cc3333; }
+#main-area { display: flex; flex: 1; overflow: hidden; }
+#left-panel { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+#right-panel { width: 380px; overflow-y: auto; border-left: 1px solid #d8d0c8; flex-shrink: 0; }
+#chat {
+  flex: 1; overflow-y: auto; padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.msg { max-width: 85%; padding: 8px 14px; border-radius: 14px; font-size: 15px; line-height: 1.4; }
+.msg.user { align-self: flex-start; background: #e8e0d8; color: #2d2824; border-bottom-left-radius: 4px; }
+.msg.assistant { align-self: flex-end; background: #f5e0d0; color: #2d2824; border-bottom-right-radius: 4px; }
+.msg .role-label { font-size: 11px; opacity: .6; margin-bottom: 2px; }
+.msg.func { align-self: center; font-size: 12px; color: #8a8078; background: transparent; padding: 2px 8px; }
+#indicator {
+  flex-shrink: 0; padding: 6px 16px 10px; font-size: 13px; color: #8a8078;
+  min-height: 28px; text-align: center;
+}
+#indicator.listening { color: #d45b2e; }
+#indicator.thinking { color: #d45b2e; }
+.recipe-entry {
+  padding: 12px 16px;
+  border-bottom: 1px solid #d8d0c8;
+}
+.recipe-entry:last-child { border-bottom: none; }
+.recipe-entry.current {
+  background: #e8e0d8;
+  border-left: 3px solid #d45b2e;
+  padding-left: 13px;
+}
+.recipe-entry-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #d45b2e;
+  margin-bottom: 6px;
+}
+.recipe-entry-ingredients { margin-bottom: 6px; }
+.recipe-entry-ingredients div {
+  padding: 2px 0;
+  font-size: 13px;
+  color: #2d2824;
+  line-height: 1.6;
+}
+.recipe-entry .step {
+  padding: 3px 8px;
+  margin: 2px 0;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #6a6058;
+}
+.recipe-entry .step.current {
+  background: #f5e0d0;
+  color: #d45b2e;
+  font-weight: 600;
+}
+.recipe-entry .step.completed {
+  color: #b8a898;
+  text-decoration: line-through;
+}
+.recipe-entry-substitutions {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #d45b2e;
+}
+#text-input-bar { padding: 8px 16px; border-top: 1px solid #d8d0c8; background: #f3eee9; flex-shrink: 0; }
+#text-input { width: 100%; padding: 8px 12px; border: 1px solid #d8d0c8; border-radius: 8px; background: #fff; color: #2d2824; font-size: 14px; outline: none; font-family: inherit; }
+#text-input:focus { border-color: #d45b2e; }
+#debug-toggle { display: block; text-align: right; padding: 2px 16px; font-size: 11px; color: #8a8078; cursor: pointer; text-decoration: none; }
+#debug-toggle:hover { color: #2d2824; }
+#debug-box { display: none; width: 100%; max-height: 200px; background: #2d2824; color: #d8d0c8; border: none; padding: 4px 16px; font-size: 11px; font-family: monospace; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word; }
+</style>
+</head>
+<body>
+
+<div id="top-bar">
+  <button id="start-btn" class="btn btn-start">&#9654; Start</button>
+  <button id="mute-btn" class="btn btn-mute" disabled>&#128263; Mute</button>
+  <span id="status">&#x25cf; Disconnected</span>
+</div>
+
+<div id="timers"></div>
+
+<div id="main-area">
+  <div id="left-panel">
+    <div id="chat"></div>
+    <div id="indicator">Press mic to start</div>
+  </div>
+  <div id="right-panel">
+    <div id="recipe-section">
+      <div id="recipe-list"></div>
+    </div>
+  </div>
+</div>
+
+<div id="text-input-bar" style="display:none">
+  <input type="text" id="text-input" placeholder="Type a message..." />
+</div>
+
+<a id="debug-toggle" href="#">Debug</a>
+<pre id="debug-box"></pre>
+
+<script>
+const START_BTN = document.getElementById('start-btn');
+const MUTE_BTN = document.getElementById('mute-btn');
+const STATUS = document.getElementById('status');
+const CHAT = document.getElementById('chat');
+const TIMERS = document.getElementById('timers');
+const INDICATOR = document.getElementById('indicator');
+const DEBUG_BOX = document.getElementById('debug-box');
+const TEXT_INPUT = document.getElementById('text-input');
+const TEXT_BAR = document.getElementById('text-input-bar');
+
+document.getElementById('debug-toggle').addEventListener('click', (e) => {
+  e.preventDefault();
+  DEBUG_BOX.style.display = DEBUG_BOX.style.display === 'none' || !DEBUG_BOX.style.display ? 'block' : 'none';
+});
+
+let ws = null;
+let audioCtx = null;
+let agentRunning = false;
+let micMuted = true;
+let intentionalStop = false;
+let playbackTime = 0;
+let reconnectTimer = null;
+let recognition = null;
+let processingWake = false;
+let wakeTimeout = null;
+let recipeHistory = [];
+
+function setStatus(text, cls) {
+  STATUS.textContent = '\u25cf ' + text;
+  STATUS.className = cls || '';
+}
+
+function addMsg(role, text) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.innerHTML = '<div class="role-label">' + (role === 'user' ? 'You' : 'Handful') + '</div>' + escapeHtml(text);
+  CHAT.appendChild(div);
+  CHAT.scrollTop = CHAT.scrollHeight;
+}
+
+function addFuncCall(name, args, result) {
+  const div = document.createElement('div');
+  div.className = 'msg func';
+  let msg = '';
+  if (!result || !result.success) {
+    msg = name + ' failed' + (result && result.error ? ': ' + result.error : '');
+  } else {
+    switch (name) {
+      case 'set_recipe':
+        msg = 'Recipe set: ' + (result.recipe_name || '');
+        break;
+      case 'advance_step':
+        msg = 'Advanced to step ' + ((result.current_step_index || 0) + 1) + ' of ' + (result.total_steps || '?');
+        break;
+      case 'go_to_step':
+        msg = 'Went to step ' + ((result.current_step_index || 0) + 1);
+        break;
+      case 'substitute_ingredient':
+        msg = 'Substituted ' + result.original + ' \u2192 ' + result.replacement;
+        if (result.reason) msg += ' (' + result.reason + ')';
+        break;
+      case 'add_note':
+        msg = 'Note added';
+        break;
+      case 'save_session':
+        msg = 'Session saved' + (result.file ? ' \u2192 ' + result.file : '');
+        break;
+      case 'start_timer':
+        msg = 'Timer set: ' + (result.label || args.label || '') + ' for ' + (result.duration_seconds || args.duration_seconds || '?') + 's';
+        break;
+      case 'cancel_timer':
+        msg = 'Timer cancelled';
+        break;
+      case 'get_timers':
+        msg = 'Timers checked';
+        break;
+      case 'get_current_step':
+        msg = 'Current step: ' + (result.current_step || '');
+        break;
+      default:
+        msg = name + ' ' + JSON.stringify(args);
+    }
+  }
+  div.textContent = msg;
+  CHAT.appendChild(div);
+  CHAT.scrollTop = CHAT.scrollHeight;
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function updateTimers(timers) {
+  TIMERS.innerHTML = '';
+  for (const t of timers) {
+    const card = document.createElement('div');
+    card.className = 'timer-card' + (t.is_expired ? ' expired' : '');
+    const m = Math.floor(t.remaining_seconds / 60);
+    const s = Math.floor(t.remaining_seconds % 60);
+    card.innerHTML = '<div class="label">' + escapeHtml(t.label) + '</div>' +
+      '<div class="time">' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0') + '</div>';
+    card.dataset.timerId = t.id;
+    TIMERS.appendChild(card);
+  }
+}
+
+function markTimerFinished(label) {
+  const cards = TIMERS.querySelectorAll('.timer-card');
+  for (const c of cards) {
+    if (c.querySelector('.label').textContent === label) {
+      c.classList.add('expired');
+      setTimeout(() => c.remove(), 5000);
+    }
+  }
+}
+
+function updateRecipe(recipe) {
+  const last = recipeHistory[recipeHistory.length - 1];
+  if (last && last.name === recipe.name) {
+    Object.assign(last, recipe);
+  } else {
+    recipeHistory.push({ ...recipe });
+  }
+  renderRecipeList();
+}
+
+function renderRecipeList() {
+  const list = document.getElementById('recipe-list');
+  list.innerHTML = '';
+  for (let i = 0; i < recipeHistory.length; i++) {
+    const r = recipeHistory[i];
+    const isCurrent = i === recipeHistory.length - 1;
+    const entry = document.createElement('div');
+    entry.className = 'recipe-entry' + (isCurrent ? ' current' : '');
+
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'recipe-entry-name';
+    nameDiv.textContent = r.name;
+    entry.appendChild(nameDiv);
+
+    const ingDiv = document.createElement('div');
+    ingDiv.className = 'recipe-entry-ingredients';
+    for (const ing of r.ingredients) {
+      const item = document.createElement('div');
+      item.textContent = '\u2022 ' + (ing.quantity ? ing.quantity + ' ' : '') + ing.name;
+      ingDiv.appendChild(item);
+    }
+    entry.appendChild(ingDiv);
+
+    const stepsDiv = document.createElement('div');
+    for (let j = 0; j < r.steps.length; j++) {
+      const div = document.createElement('div');
+      div.className = 'step';
+      if (j < r.current_step_index) div.classList.add('completed');
+      if (j === r.current_step_index) div.classList.add('current');
+      div.textContent = (j + 1) + '. ' + r.steps[j];
+      stepsDiv.appendChild(div);
+    }
+    entry.appendChild(stepsDiv);
+
+    if (r.substitutions && r.substitutions.length) {
+      const subDiv = document.createElement('div');
+      subDiv.className = 'recipe-entry-substitutions';
+      const parts = r.substitutions.map(s => s.original + ' \u2192 ' + s.replacement);
+      subDiv.textContent = 'Substitutions: ' + parts.join(', ');
+      entry.appendChild(subDiv);
+    }
+
+    list.appendChild(entry);
+  }
+  if (recipeHistory.length) {
+    document.getElementById('right-panel').scrollTop = document.getElementById('right-panel').scrollHeight;
+  }
+}
+
+function setIndicator(text, cls) {
+  INDICATOR.textContent = text;
+  INDICATOR.className = cls || '';
+}
+
+function handleJson(data) {
+  switch (data.type) {
+    case 'settings_applied':
+      setStatus('Connected', 'connected');
+      break;
+    case 'ready':
+      setStatus('Ready', 'connected');
+      if (!micMuted && recognition) recognition.start();
+      break;
+    case 'conversation_text':
+      addMsg(data.role === 'assistant' ? 'assistant' : 'user', data.content);
+      break;
+    case 'agent_thinking':
+      setIndicator('Thinking...', 'thinking');
+      break;
+    case 'agent_started_speaking':
+      setIndicator('');
+      break;
+    case 'agent_audio_done':
+      processingWake = false;
+      clearTimeout(wakeTimeout);
+      if (!micMuted && recognition)
+        try { recognition.start(); } catch (_) {}
+      break;
+    case 'timer_update':
+      updateTimers(data.timers);
+      break;
+    case 'timer_finished':
+      markTimerFinished(data.label);
+      break;
+    case 'function_call':
+      addFuncCall(data.name, data.args, data.result);
+      break;
+    case 'recipe_update':
+      updateRecipe(data.recipe);
+      break;
+    case 'error':
+      setStatus('Error: ' + data.message, 'error');
+      break;
+  }
+}
+
+function playAudio(int16) {
+  if (!audioCtx)
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+  const float32 = new Float32Array(int16.length);
+  for (let i = 0; i < int16.length; i++)
+    float32[i] = int16[i] / 0x7fff;
+  const buf = audioCtx.createBuffer(1, float32.length, 24000);
+  buf.getChannelData(0).set(float32);
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  src.connect(audioCtx.destination);
+  const now = audioCtx.currentTime;
+  const startTime = Math.max(now, playbackTime);
+  src.start(startTime);
+  playbackTime = startTime + buf.duration;
+}
+
+function connect() {
+  if (ws && ws.readyState === WebSocket.OPEN) return;
+  setStatus('Connecting...', '');
+  intentionalStop = false;
+
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = protocol + '//' + location.host + '/converse';
+  ws = new WebSocket(url);
+  ws.binaryType = 'arraybuffer';
+
+  ws.onopen = () => {
+    setStatus('Connected', 'connected');
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  };
+
+  ws.onmessage = (e) => {
+    if (e.data instanceof ArrayBuffer) {
+      playAudio(new Int16Array(e.data));
+    } else {
+      try { handleJson(JSON.parse(e.data)); } catch(_) {}
+    }
+  };
+
+  ws.onclose = () => {
+    setStatus('Disconnected', '');
+    ws = null;
+    if (agentRunning) {
+      agentRunning = false;
+      START_BTN.textContent = '\u25B6 Start';
+      START_BTN.className = 'btn btn-start';
+      MUTE_BTN.disabled = true;
+    }
+    if (!intentionalStop) scheduleReconnect();
+  };
+
+  ws.onerror = () => {
+    setStatus('Connection error', 'error');
+  };
+}
+
+function scheduleReconnect() {
+  if (reconnectTimer || intentionalStop) return;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, 3000);
+}
+
+function initWebSpeech() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    DEBUG_BOX.textContent = 'Web Speech not supported - open mic fallback';
+    return;
+  }
+  recognition = new SR();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+
+  recognition.onresult = (event) => {
+    DEBUG_BOX.textContent = event.results[event.results.length - 1][0].transcript;
+    if (processingWake) return;
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (!event.results[i].isFinal) continue;
+      const raw = event.results[i][0].transcript;
+      const wakeRegex = /\bchef\b/i;
+      const match = raw.match(wakeRegex);
+      if (!match) continue;
+      processingWake = true;
+      clearTimeout(wakeTimeout);
+      wakeTimeout = setTimeout(() => { processingWake = false; }, 8000);
+      DEBUG_BOX.textContent += '\n[Sending text to agent]';
+      const afterWake = raw.substring(match.index + match[0].length).trim();
+      if (afterWake && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "inject_speech", text: afterWake }));
+      }
+    }
+  };
+
+  recognition.onend = () => {
+    processingWake = false;
+    clearTimeout(wakeTimeout);
+    if (!micMuted && ws && ws.readyState === WebSocket.OPEN)
+      try { recognition.start(); } catch (_) {}
+  };
+}
+
+function startAgent() {
+  if (agentRunning) return;
+  connect();
+  agentRunning = true;
+  START_BTN.textContent = '\u25CF Stop';
+  START_BTN.className = 'btn btn-start running';
+  MUTE_BTN.disabled = false;
+  TEXT_BAR.style.display = 'block';
+}
+
+function stopAgent() {
+  if (!agentRunning) return;
+  intentionalStop = true;
+  agentRunning = false;
+  micMuted = true;
+  if (recognition) recognition.stop();
+  TEXT_BAR.style.display = 'none';
+  TEXT_INPUT.value = '';
+  START_BTN.textContent = '\u25B6 Start';
+  START_BTN.className = 'btn btn-start';
+  MUTE_BTN.disabled = true;
+  MUTE_BTN.textContent = '\u{1F507} Mute';
+  MUTE_BTN.className = 'btn btn-mute';
+  if (audioCtx) { audioCtx.close(); audioCtx = null; playbackTime = 0; }
+  setIndicator('');
+  recipeHistory = [];
+}
+
+function toggleMute() {
+  if (!agentRunning) return;
+  if (micMuted) {
+    micMuted = false;
+    MUTE_BTN.textContent = '\u{1F507} Mute';
+    MUTE_BTN.className = 'btn btn-mute unmuted';
+    setIndicator('Say "chef" to speak', '');
+    if (recognition) recognition.start();
+  } else {
+    micMuted = true;
+    MUTE_BTN.textContent = '\u{1F50A} Unmute';
+    MUTE_BTN.className = 'btn btn-mute';
+    setIndicator('');
+    if (recognition) recognition.stop();
+  }
+}
+
+START_BTN.addEventListener('click', () => {
+  if (agentRunning) {
+    stopAgent();
+  } else {
+    startAgent();
+  }
+});
+
+MUTE_BTN.addEventListener('click', toggleMute);
+
+TEXT_INPUT.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const text = TEXT_INPUT.value.trim();
+    if (text && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "inject_speech", text: text }));
+      TEXT_INPUT.value = '';
+    }
+  }
+});
+
+initWebSpeech();
+</script>
+</body>
+</html>

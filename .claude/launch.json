@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "handful",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8055"],
+      "cwd": "backend",
+      "port": 8055
+    }
+  ]
+}

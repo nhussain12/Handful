@@ -1,0 +1,14 @@
+[project]
+name = "handful"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "certifi>=2024.0.0",
+    "deepgram-sdk==7.3.1",
+    "fastapi>=0.115.0",
+    "numpy==2.4.6",
+	"ollama>=0.6.2",
+    "python-dotenv==1.2.2",
+    "sounddevice==0.5.5",
+    "uvicorn[standard]>=0.34.0",
+]
