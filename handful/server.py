@@ -60,13 +60,11 @@ async def health() -> dict:
 
 @app.get("/notes")
 async def list_notes() -> list[dict]:
-    import glob as glob_mod
-    files = glob_mod.glob("notes/*.txt")
-    result = []
-    for f in sorted(files, reverse=True)[:20]:
-        text = open(f).read()
-        result.append({"filename": f, "preview": text[:200]})
-    return result
+    files = sorted(Path("notes").glob("*.txt"), reverse=True)[:20]
+    return [
+        {"filename": str(f), "preview": f.read_text()[:200]}
+        for f in files
+    ]
 
 
 @app.websocket("/converse")

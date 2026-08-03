@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime
+from pathlib import Path
+
 from .models import CookingSession, Ingredient, Recipe, SessionNote, Substitution
 
 
@@ -168,10 +171,10 @@ class RecipeStateManager:
         }
 
     def save_session(self) -> dict:
-        self.session.ended_at = __import__("datetime").datetime.now().isoformat()
+        self.session.ended_at = datetime.now().isoformat()
 
         note_text = self._format_session_notes()
-        notes_dir = __import__("pathlib").Path("notes")
+        notes_dir = Path("notes")
         notes_dir.mkdir(exist_ok=True)
 
         filename = f"handful_{self.session.id}_{self.session.recipe.name.replace(' ', '_')}.txt"
