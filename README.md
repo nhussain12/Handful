@@ -1,8 +1,7 @@
-# 🍳 Handful
+# Handful
 
 A hands-free, voice-native cooking assistant. Tell it what you have or what you want to
-make, and it reads the recipe aloud on a touchless display — running timers and editing
-steps by voice so you never touch your phone mid-cook.
+make, and it reads the recipe aloud on a touchless display so you never touch your phone while cooking.
 
 Built at UC Berkeley's AI Hackathon. → [Devpost](https://devpost.com/software/handful-hc7826)
 
